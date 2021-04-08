@@ -19,8 +19,10 @@ class JUser:
     def daily(self):
         self.daily_available = False
         self.add_jbucks(self.daily_value)
+        msg = 'You have gained {} Jbucks. You now have {} Jbucks'.format(self.daily_value, self.jbucks)
         if self.daily_value < 5:
             self.daily_value += 1
+        return msg
 
     def add_jbucks(self, amt):
         self.jbucks += amt

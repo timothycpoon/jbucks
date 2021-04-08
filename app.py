@@ -32,8 +32,7 @@ async def on_command_error(ctx, error):
 async def daily(ctx):
     juser = user.JUser(ctx.author.id)
     if juser.daily_available:
-        await ctx.send('You have gained {} Jbucks. You now have {} Jbucks'.format(juser.daily_value, juser.jbucks + juser.daily_value))
-        juser.daily()
+        await ctx.send(juser.daily())
     else:
         await ctx.send('You are attempting to gain more than ur alloted Jbucks'.format(juser.jbucks))
     juser.save()
