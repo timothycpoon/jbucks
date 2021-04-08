@@ -4,7 +4,6 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 from pymongo import MongoClient
-from bson.objectid import ObjectId
 from datetime import datetime
 
 load_dotenv()
@@ -15,6 +14,7 @@ db = client['jbucks']
 bot = commands.Bot('j!', commands.DefaultHelpCommand(no_category="JBucks"))
 
 import user
+import jobs
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -83,23 +83,25 @@ async def viewjobs(ctx, mine=None):
         await ctx.send("No jobs found")
         return
     for job in db.jobs.find(fil):
-        embed.add_field(name=job.get('name', "No Name"), value=await get_job_output(job))
+        jjob = jobs.Job()
+        jjob.load(job)
+        embed.add_field(name=jjob.name, value=await get_job_output(jjob))
     await ctx.send(embed=embed)
 
 async def get_job_output(job):
-    employer = await bot.fetch_user(job.get('employer'))
+    employer = await bot.fetch_user(job.employer)
     if not employer:
         return "Employer no longer available"
 
     income_str = ""
-    if job.get('income') > 0:
-        income_str = 'Income: {}'.format(job.get('income', 0))
+    if job.income > 0:
+        income_str = 'Income: {}'.format(job.income)
     else:
-        income_str = 'Cost: {}'.format(-1 * job.get('income', 0))
+        income_str = 'Cost: {}'.format(-1 * job.income)
 
     accepted_str = ""
-    if job.get('accepted'):
-        accepted_by =  await bot.fetch_user(job.get('accepted'))
+    if job.accepted:
+        accepted_by =  await bot.fetch_user(job.accepted)
         accepted_str = "\nAccepted by: {}#{}".format(accepted_by.name, accepted_by.discriminator)
     return r"""
         ID: {}
@@ -107,12 +109,12 @@ async def get_job_output(job):
         Repeats: {}
         {}: {}
         Description: {}{}
-    """.format(job.get('_id'),
+    """.format(job._id,
                income_str,
-               job.get('repeats', 'never'),
-               'Employer' if job.get('income') > 0 else 'Seller',
+               job.repeats,
+               'Employer' if job.income > 0 else 'Seller',
                '{}#{}'.format(employer.name, employer.discriminator),
-               job.get('description', ''),
+               job.description,
                accepted_str,
     )
 
@@ -128,22 +130,21 @@ async def postjob(ctx, income: float, repeats, *args):
         await ctx.send("Please specify if the job pays once or daily")
         return
     [name, description] = (' '.join(args)).split(':')
-    new_job = {
-        'income': income,
-        'repeats': repeats,
-        'name': name,
-        'description': description,
-        'employer': ctx.author.id,
-        'accepted': 0,   
-    }
-    db.jobs.insert_one(new_job)
+    new_job = jobs.Job(db.globals.find_one_and_update({'key': 'job_counter'}, { '$inc': {'value': 1}}).get('value'))
+    new_job.income = income
+    new_job.repeats = repeats
+    new_job.name = name
+    new_job.description = description
+    new_job.employer = ctx.author.id
+    new_job.save()
+
     embed = discord.Embed()
     embed.add_field(name=name, value=await get_job_output(new_job))
     await ctx.send('Successfully Added Job', embed=embed)
 
 @bot.command(name='deletejob', help='deletejob <job_id>')
-async def deletejob(ctx, job_id):
-    job = db.jobs.find_one({'_id': ObjectId(job_id)})
+async def deletejob(ctx, job_id: int):
+    job = db.jobs.find_one({'_id': job_id})
     if not job:
         await ctx.send("Could not find job")
         return
@@ -152,12 +153,12 @@ async def deletejob(ctx, job_id):
         await ctx.send("This is not your job")
         return
 
-    if db.jobs.delete_one({'_id': ObjectId(job_id)}).deleted_count:
+    if db.jobs.delete_one({'_id': job_id}).deleted_count:
         await ctx.send("Successfully Deleted Job {}".format(job_id))
 
 @bot.command(name='acceptjob', help='acceptjob <job_id>')
-async def acceptjob(ctx, job_id):
-    job = db.jobs.find_one({'_id': ObjectId(job_id)})
+async def acceptjob(ctx, job_id: int):
+    job = db.jobs.find_one({'_id': job_id})
     if not job:
         await ctx.send("Could not find job")
         return
@@ -169,35 +170,41 @@ async def acceptjob(ctx, job_id):
     juser = user.JUser(ctx.author.id)
     juser.save()
 
+    jjob = jobs.Job()
+    jjob.load(job)
+
     employer = await bot.fetch_user(job.get('employer'))
     embed = discord.Embed()
-    embed.add_field(name=job.get('name'), value=await get_job_output(job))
+    embed.add_field(name=job.get('name'), value=await get_job_output(jjob))
     await ctx.send('Hey {}, {} has accepted your job:'.format(employer.mention if employer else job.get('employer'), ctx.author.mention), embed=embed)
 
     if job.get('repeats') == 'never':
         await transfer(ctx, user.JUser(job.get('employer')), employer.mention, juser, ctx.author.mention, job.get('income'))
     else:
-        db.jobs.update_one({'_id': ObjectId(job_id)}, {'$set': {'accepted': ctx.author.id}})
+        db.jobs.update_one({'_id': job_id}, {'$set': {'accepted': ctx.author.id}})
 
 @bot.command(name='quitjob', help='quitjob <job_id>')
-async def quitjob(ctx, job_id):
+async def quitjob(ctx, job_id: int):
     juser = user.JUser(ctx.author.id)
-    job = db.jobs.find_one({'_id': ObjectId(job_id)})
+    job = db.jobs.find_one({'_id': job_id})
 
     if not job:
         await ctx.send("Could not find job")
         return
 
-    if job.get('accepted') != ctx.author.id:
+    jjob = jobs.Job()
+    jjob.load(job)
+
+    if jjob.accepted != ctx.author.id:
         await ctx.send("This is not your job")
         return
 
     juser.save()
-    db.jobs.update_one({'_id': ObjectId(job_id)}, { '$set': {'accepted': 0}})
+    db.jobs.update_one({'_id': job_id}, { '$set': {'accepted': 0}})
 
     embed = discord.Embed()
-    job['accepted'] = 0
-    embed.add_field(name=job.get('name'), value=await get_job_output(job))
+    jjob.accepted = 0
+    embed.add_field(name=jjob.name, value=await get_job_output(jjob))
     await ctx.send('You have quit your job:', embed=embed)
 
 async def transfer(ctx, source, source_mention, to, to_mention, amount):
