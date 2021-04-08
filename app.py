@@ -92,7 +92,7 @@ async def get_job_output(job):
 
     income_str = ""
     if job.get('income') > 0:
-        income_str = 'Income: {}'.format('income', 0)
+        income_str = 'Income: {}'.format(job.get('income', 0))
     else:
         income_str = 'Cost: {}'.format(-1 * job.get('income', 0))
 
@@ -117,7 +117,7 @@ async def get_job_output(job):
 @bot.command(name='postservice', brief='postservice <cost> <never|daily> <name>:<description>',
     help='If "never" is set, there is a one-time transfer when the job is accepted.')
 async def postservice(ctx, income: float, repeats, *args):
-    await postjob(ctx, income, repeats, *args)
+    await postjob(ctx, -1 * income, repeats, *args)
 
 @bot.command(name='postjob', brief='postjob <income> <never|daily> <name>:<description>',
     help='If "never" is set, there is a one-time transfer when the job is accepted.')
@@ -234,7 +234,7 @@ async def bal(ctx, usr : discord.Member = None):
         juser = user.JUser(ctx.author.id)
         await ctx.send('Your current balance is {} Jbucks'.format(juser.jbucks))
 
-@bot.command(name='prizepool', help='check prizepool')
+@bot.command(name='prizepool', aliases=['jpp'], help='check prizepool')
 async def prizepool(ctx):
     await ctx.send('The current prize pool is {} Jbucks'.format(db.globals.find_one({'key': 'prize_pool'}).get('value', 0)))
 
@@ -274,7 +274,7 @@ async def leaderboard(ctx):
     await ctx.send(embed=embed)
 
 def add_prize_pool(amount):
-    db.globals.update_one({'key': 'prize_pool'}, { '$inc': {'value': amount}})
+    db.globals.update_one({'key': 'prize_pool'}, { '$inc': {'value': round(amount, 2)}})
 
 if __name__ == '__main__':
     bot.run(TOKEN)
