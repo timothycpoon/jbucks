@@ -85,6 +85,7 @@ async def view(ctx, type, mine=None):
         juser = user.JUser(ctx.author.id)
         fil['accepted'] = juser.id
     elif mine == 'all':
+        pass
     else:
         fil['accepted'] = 0
 
