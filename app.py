@@ -63,7 +63,7 @@ async def pay(ctx, amount: float, target: discord.Member, *reasons):
     juser.save()
     target_user.save()
     await ctx.send('You have paid {} Jbucks to {}#{}. You now have {} Jbucks and they have {}.'
-                   .format(amount, target.name, target.discriminator, juser.jbucks, target_user.jbucks))
+                   .format(amount, target.name, target.discriminator, round(juser.jbucks, 2), round(target_user.jbucks, 2)))
 
 @bot.command(name='viewjobs', brief='viewjobs <type?>',
     help='"posted" to see only your jobs; "accepted" to see accepted by you; "all" to see all, including accepted')
@@ -238,14 +238,14 @@ async def transfer(ctx, source, source_mention, to, to_mention, amount):
 async def bal(ctx, usr : discord.Member = None):
     if usr:
         juser = user.JUser(usr.id)
-        await ctx.send('{}#{}\'s current balance is {} Jbucks'.format(usr.name, usr.discriminator, juser.jbucks))
+        await ctx.send('{}#{}\'s current balance is {} Jbucks'.format(usr.name, usr.discriminator, round(juser.jbucks, 2)))
     else:
         juser = user.JUser(ctx.author.id)
-        await ctx.send('Your current balance is {} Jbucks'.format(juser.jbucks))
+        await ctx.send('Your current balance is {} Jbucks'.format(round(juser.jbucks, 2)))
 
 @bot.command(name='prizepool', aliases=['jpp'], help='check prizepool')
 async def prizepool(ctx):
-    await ctx.send('The current prize pool is {} Jbucks'.format(db.globals.find_one({'key': 'prize_pool'}).get('value', 0)))
+    await ctx.send('The current prize pool is {} Jbucks'.format(round(db.globals.find_one({'key': 'prize_pool'}).get('value', 0), 2)))
 
 @bot.command(name='gift', brief='gift <user> <amt> (admin only)', help='gifts Jbucks to target user (out of thin air) (admin only')
 @commands.has_permissions(administrator=True)
@@ -285,7 +285,7 @@ async def leaderboard(ctx):
     embed = discord.Embed(title="The Official Jelly JBucks Leaderboard")
     for entry in db.user.find({}).sort('jbucks', -1):
         usr = await bot.fetch_user(entry.get('user_id'))
-        embed.add_field(name='{}#{}'.format(usr.name, usr.discriminator), value=entry.get('jbucks'), inline=False)
+        embed.add_field(name='{}#{}'.format(usr.name, usr.discriminator), value=round(entry.get('jbucks'), 2), inline=False)
     await ctx.send(embed=embed)
 
 def add_prize_pool(amount):
