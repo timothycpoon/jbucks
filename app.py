@@ -89,7 +89,7 @@ async def view(ctx, type, mine=None):
     else:
         fil['accepted'] = 0
 
-    embed = discord.Embed(title='Current Jobs')
+    embed = discord.Embed(title='Current {}'.format(type))
     if db.jobs.count_documents(fil) == 0:
         await ctx.send("No jobs found")
         return
@@ -130,11 +130,13 @@ async def get_job_output(job):
     )
 
 @bot.command(name='postservice', usage='postservice <cost> <never|daily> <name>:<description>',
+    brief='postservice <cost> <never|daily> <name>:<description>',
     help='If "never" is set, there is a one-time transfer when the job is accepted.')
 async def postservice(ctx, income: float, repeats, *args):
     await postjob(ctx, -1 * income, repeats, *args)
 
 @bot.command(name='postjob', usage='postjob <income> <never|daily> <name>:<description>',
+    brief='postjob <income> <never|daily> <name>:<description>',
     help='If "never" is set, there is a one-time transfer when the job is accepted.')
 async def postjob(ctx, income: float, repeats, *args):
     if repeats not in ['never', 'daily']:
@@ -187,6 +189,13 @@ async def accept(ctx, job_id: int):
     employer = await bot.fetch_user(job.get('employer'))
     embed = discord.Embed()
     embed.add_field(name=job.name, value=await get_job_output(job))
+    if (job.income <= 0 and juser.jbucks < -1 * job.income):
+        await ctx.send('Sorry, you do not have enough jbux for this service (You have {} jbux)'.format(juser.jbucks))
+        return
+    elif (job.income > 0 and employer.jbucks < job.income):
+        await ctx.send('Sorry, your employer does not have enough jbux to hire you (They have {} jbux)'.format(employer.jbucks))
+        return
+
     await ctx.send('Hey {}, {} has accepted your job:'.format(employer.mention if employer else job.employer, ctx.author.mention), embed=embed)
 
     if job.repeats == 'never':
