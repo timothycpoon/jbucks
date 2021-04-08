@@ -18,7 +18,7 @@ class JUser:
 
     def daily(self):
         self.daily_available = False
-        self.add_jbucks(daily_value)
+        self.add_jbucks(self.daily_value)
         if self.daily_value < 5:
             self.daily_value += 1
 
