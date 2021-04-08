@@ -30,8 +30,8 @@ async def on_command_error(ctx, error):
 async def daily(ctx):
     juser = user.JUser(ctx.author.id)
     if juser.daily_available:
+        await ctx.send('You have gained {} Jbucks. You now have {} Jbucks'.format(juser.daily_value, juser.jbucks))
         juser.daily()
-        await ctx.send('You have gained one (1) Jbuck. You now have {} Jbucks'.format(juser.jbucks))
     else:
         await ctx.send('You are attempting to gain more than ur alloted Jbucks'.format(juser.jbucks))
     juser.save()
@@ -104,11 +104,12 @@ async def get_job_output(job):
         ID: {}
         {}
         Repeats: {}
-        Employer: {}
+        {}: {}
         Description: {}{}
     """.format(job.get('_id'),
                income_str,
                job.get('repeats', 'never'),
+               'Employer' if job.get('income') > 0 else 'Seller',
                '{}#{}'.format(employer.name, employer.discriminator),
                job.get('description', ''),
                accepted_str,
@@ -259,11 +260,17 @@ async def award(ctx, usr: discord.Member):
 
         await ctx.send('{} Jbucks have been awarded to {}#{} from the prize pool, which is now empty'.format(amt, usr.name, usr.discriminator))
 
+@bot.command(name='loss', brief='we lost colo, give pity jbuck (admin only')
+@commands.has_permissions(administrator=True)
+async def loss(ctx):
+    db.user.update_many({}, { '$inc': {'jbucks': 1}})
+    await ctx.send('you suck but nice try. here\'s a jbuck <:fuck:735993594825146448>')
+
 @bot.command(name='victory', brief='we won colo, so everyon get jbuck (admin only)')
 @commands.has_permissions(administrator=True)
 async def victory(ctx):
-    db.user.update_many({}, { '$inc': {'jbucks': 1}})
-    await ctx.send('We won colo! <:mikudab:728469356605866016> Everyone gets one (1) JBuck')
+    db.user.update_many({}, { '$inc': {'jbucks': 5}})
+    await ctx.send('We won colo! <:mikudab:728469356605866016> Everyone gets five (5) JBux')
 
 @bot.command(name='leaderboard', help='check jbucks leaderboard')
 async def leaderboard(ctx):
