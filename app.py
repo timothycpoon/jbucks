@@ -5,8 +5,6 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 from pymongo import MongoClient
-import user
-import jobs
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -14,6 +12,8 @@ client = MongoClient(os.getenv('MONGODB_URL'))
 db = client['jbucks']
 
 bot = commands.Bot('j!', commands.DefaultHelpCommand(no_category="JBucks"))
+import user
+import jobs
 
 @bot.event
 async def on_command_error(ctx, error):
