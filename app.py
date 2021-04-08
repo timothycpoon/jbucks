@@ -22,6 +22,8 @@ async def on_command_error(ctx, error):
         return
     if isinstance(error, commands.BadArgument):
         await ctx.send('Bad arguments')
+    if isinstance(error, commands.CommandInvokeError):
+        await ctx.send('Bad arguments')
     if isinstance(error, commands.MissingPermissions):
         await ctx.send('You do not have permission to run this command')
     raise error
