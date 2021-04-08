@@ -68,24 +68,34 @@ async def pay(ctx, amount: float, target: discord.Member, *reasons):
 @bot.command(name='viewjobs', brief='viewjobs <type?>',
     help='"posted" to see only your jobs; "accepted" to see accepted by you; "all" to see all, including accepted')
 async def viewjobs(ctx, mine=None):
+    await view(ctx, 'jobs', mine)
+
+@bot.command(name='viewservices', brief='viewservices <type?>',
+    help='"posted" to see only your services; "accepted" to see accepted by you; "all" to see all, including accepted')
+async def viewservices(ctx, mine=None):
+    await view(ctx, 'services', mine)
+
+async def view(ctx, type, mine=None):
     fil = {}
+    fil['income'] = {'$gt': 0} if type == 'jobs' else {'$lte': 0}
     if mine == 'posted':
-        fil = {'accepted': 0, 'employer': ctx.author.id}
+        fil['accepted'] = 0
+        fil['employer'] = ctx.author.id
     elif mine == 'accepted':
         juser = user.JUser(ctx.author.id)
-        fil = {'accepted': juser.id}
+        fil['accepted'] = juser.id
     elif mine == 'all':
-        fil = {}
     else:
-        fil = {'accepted': 0}
+        fil['accepted'] = 0
+
     embed = discord.Embed(title='Current Jobs')
     if db.jobs.count_documents(fil) == 0:
         await ctx.send("No jobs found")
         return
-    for job in db.jobs.find(fil):
-        jjob = jobs.Job()
-        jjob.load(job)
-        embed.add_field(name=jjob.name, value=await get_job_output(jjob))
+    for j in db.jobs.find(fil):
+        job = jobs.Job()
+        job.load(j)
+        embed.add_field(name=job.name, value=await get_job_output(job))
     await ctx.send(embed=embed)
 
 async def get_job_output(job):
@@ -118,12 +128,12 @@ async def get_job_output(job):
                accepted_str,
     )
 
-@bot.command(name='postservice', brief='postservice <cost> <never|daily> <name>:<description>',
+@bot.command(name='postservice', usage='postservice <cost> <never|daily> <name>:<description>',
     help='If "never" is set, there is a one-time transfer when the job is accepted.')
 async def postservice(ctx, income: float, repeats, *args):
     await postjob(ctx, -1 * income, repeats, *args)
 
-@bot.command(name='postjob', brief='postjob <income> <never|daily> <name>:<description>',
+@bot.command(name='postjob', usage='postjob <income> <never|daily> <name>:<description>',
     help='If "never" is set, there is a one-time transfer when the job is accepted.')
 async def postjob(ctx, income: float, repeats, *args):
     if repeats not in ['never', 'daily']:
@@ -156,9 +166,9 @@ async def deletejob(ctx, job_id: int):
     if db.jobs.delete_one({'_id': job_id}).deleted_count:
         await ctx.send("Successfully Deleted Job {}".format(job_id))
 
-@bot.command(name='acceptjob', help='acceptjob <job_id>')
-async def acceptjob(ctx, job_id: int):
-    job = db.jobs.find_one({'_id': job_id})
+@bot.command(name='accept', aliases=['acceptjob', 'acceptservice'], help='acceptjob <job_id>')
+async def accept(ctx, job_id: int):
+    job_doc = db.jobs.find_one({'_id': job_id})
     if not job:
         await ctx.send("Could not find job")
         return
@@ -170,32 +180,32 @@ async def acceptjob(ctx, job_id: int):
     juser = user.JUser(ctx.author.id)
     juser.save()
 
-    jjob = jobs.Job()
-    jjob.load(job)
+    job = jobs.Job()
+    job.load(job_doc)
 
     employer = await bot.fetch_user(job.get('employer'))
     embed = discord.Embed()
-    embed.add_field(name=job.get('name'), value=await get_job_output(jjob))
-    await ctx.send('Hey {}, {} has accepted your job:'.format(employer.mention if employer else job.get('employer'), ctx.author.mention), embed=embed)
+    embed.add_field(name=job.name, value=await get_job_output(job))
+    await ctx.send('Hey {}, {} has accepted your job:'.format(employer.mention if employer else job.employer, ctx.author.mention), embed=embed)
 
-    if job.get('repeats') == 'never':
-        await transfer(ctx, user.JUser(job.get('employer')), employer.mention, juser, ctx.author.mention, job.get('income'))
+    if job.repeats == 'never':
+        await transfer(ctx, user.JUser(job.employer), employer.mention, juser, ctx.author.mention, job.income)
     else:
         db.jobs.update_one({'_id': job_id}, {'$set': {'accepted': ctx.author.id}})
 
-@bot.command(name='quitjob', help='quitjob <job_id>')
-async def quitjob(ctx, job_id: int):
+@bot.command(name='quit', aliases=['quitjob', 'quitservice'], help='quitjob <job_id>')
+async def quit(ctx, job_id: int):
     juser = user.JUser(ctx.author.id)
-    job = db.jobs.find_one({'_id': job_id})
+    job_doc = db.jobs.find_one({'_id': job_id})
 
     if not job:
         await ctx.send("Could not find job")
         return
 
-    jjob = jobs.Job()
-    jjob.load(job)
+    job = jobs.Job()
+    job.load(job_doc)
 
-    if jjob.accepted != ctx.author.id:
+    if job.accepted != ctx.author.id:
         await ctx.send("This is not your job")
         return
 
@@ -203,8 +213,8 @@ async def quitjob(ctx, job_id: int):
     db.jobs.update_one({'_id': job_id}, { '$set': {'accepted': 0}})
 
     embed = discord.Embed()
-    jjob.accepted = 0
-    embed.add_field(name=jjob.name, value=await get_job_output(jjob))
+    job.accepted = 0
+    embed.add_field(name=job.name, value=await get_job_output(job))
     await ctx.send('You have quit your job:', embed=embed)
 
 async def transfer(ctx, source, source_mention, to, to_mention, amount):
