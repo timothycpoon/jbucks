@@ -1,10 +1,12 @@
 import os
+from datetime import datetime
 
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 from pymongo import MongoClient
-from datetime import datetime
+import user
+import jobs
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -12,9 +14,6 @@ client = MongoClient(os.getenv('MONGODB_URL'))
 db = client['jbucks']
 
 bot = commands.Bot('j!', commands.DefaultHelpCommand(no_category="JBucks"))
-
-import user
-import jobs
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -34,7 +33,7 @@ async def daily(ctx):
     if juser.daily_available:
         await ctx.send(juser.daily())
     else:
-        await ctx.send('You are attempting to gain more than ur alloted Jbucks'.format(juser.jbucks))
+        await ctx.send('You are attempting to gain more than ur alloted Jbucks')
     juser.save()
 
 @bot.command(name='pay', help='pay <amount> <@user> <reason?>')
@@ -83,7 +82,7 @@ async def view(ctx, type, mine=None):
         fil['employer'] = ctx.author.id
     elif mine == 'accepted':
         juser = user.JUser(ctx.author.id)
-        fil['accepted'] = juser.id
+        fil['accepted'] = juser.user_id
     elif mine == 'all':
         pass
     else:
@@ -169,15 +168,11 @@ async def deletejob(ctx, job_id: int):
     if db.jobs.delete_one({'_id': job_id}).deleted_count:
         await ctx.send("Successfully Deleted Job {}".format(job_id))
 
-@bot.command(name='accept', aliases=['acceptjob', 'acceptservice'], help='acceptjob <job_id>')
+@bot.command(name='accept', aliases=['acceptjob', 'acceptservice'], help='accept <job_id>')
 async def accept(ctx, job_id: int):
     job_doc = db.jobs.find_one({'_id': job_id})
-    if not job:
+    if not job_doc:
         await ctx.send("Could not find job")
-        return
-
-    if job.get('accepted'):
-        await ctx.send("Job is already taken")
         return
 
     juser = user.JUser(ctx.author.id)
@@ -186,13 +181,17 @@ async def accept(ctx, job_id: int):
     job = jobs.Job()
     job.load(job_doc)
 
-    employer = await bot.fetch_user(job.get('employer'))
+    if job.accepted:
+        await ctx.send("Job is already taken")
+        return
+
+    employer = await bot.fetch_user(job.employer)
     embed = discord.Embed()
     embed.add_field(name=job.name, value=await get_job_output(job))
     if (job.income <= 0 and juser.jbucks < -1 * job.income):
         await ctx.send('Sorry, you do not have enough jbux for this service (You have {} jbux)'.format(juser.jbucks))
         return
-    elif (job.income > 0 and employer.jbucks < job.income):
+    if (job.income > 0 and employer.jbucks < job.income):
         await ctx.send('Sorry, your employer does not have enough jbux to hire you (They have {} jbux)'.format(employer.jbucks))
         return
 
@@ -203,12 +202,12 @@ async def accept(ctx, job_id: int):
     else:
         db.jobs.update_one({'_id': job_id}, {'$set': {'accepted': ctx.author.id}})
 
-@bot.command(name='quit', aliases=['quitjob', 'quitservice'], help='quitjob <job_id>')
-async def quit(ctx, job_id: int):
+@bot.command(name='quitjob', aliases=['quitservice'], help='quitjob <job_id>')
+async def quitjob(ctx, job_id: int):
     juser = user.JUser(ctx.author.id)
     job_doc = db.jobs.find_one({'_id': job_id})
 
-    if not job:
+    if not job_doc:
         await ctx.send("Could not find job")
         return
 
@@ -288,7 +287,7 @@ async def award(ctx, usr: discord.Member):
 
         await ctx.send('{} Jbucks have been awarded to {}#{} from the prize pool, which is now empty'.format(amt, usr.name, usr.discriminator))
 
-@bot.command(name='loss', brief='we lost colo, give pity jbuck (admin only')
+@bot.command(name='loss', brief='we lost colo, give pity jbuck (admin only)')
 @commands.has_permissions(administrator=True)
 async def loss(ctx):
     db.user.update_many({}, { '$inc': {'jbucks': 1}})
