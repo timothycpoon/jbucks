@@ -9,6 +9,7 @@ class JUser(Doc):
         self.jbucks = 0
         self.daily_value = 1
         self.daily_available = True
+        self.raffle_tickets = 0
         self.load(db.user.find_one({'user_id': user_id}))
 
     def primary_fil(self):
@@ -24,3 +25,8 @@ class JUser(Doc):
 
     def add_jbucks(self, amt):
         self.jbucks += amt
+
+    def add_tickets(self, amt):
+        if self.raffle_tickets == 0:
+            self.raffle_tickets = 10
+        self.raffle_tickets += amt

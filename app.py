@@ -5,6 +5,8 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 from pymongo import MongoClient
+import numpy as np
+import asyncio
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -154,7 +156,7 @@ async def postjob(ctx, income: float, repeats, *args):
     embed.add_field(name=name, value=await get_job_output(new_job))
     await ctx.send('Successfully Added Job', embed=embed)
 
-@bot.command(name='deletejob', help='deletejob <job_id>')
+@bot.command(name='delete', aliases=['deleteservice', 'deletejob'], help='deletejob <job_id>')
 async def deletejob(ctx, job_id: int):
     job = db.jobs.find_one({'_id': job_id})
     if not job:
@@ -199,11 +201,11 @@ async def accept(ctx, job_id: int):
     await ctx.send('Hey {}, {} has accepted your job:'.format(employer.mention if employer else job.employer, ctx.author.mention), embed=embed)
 
     if job.repeats == 'never':
-        await transfer(ctx, user.JUser(job.employer), employer.mention, juser, ctx.author.mention, job.income)
+        await transfer(ctx, user.JUser(job.employer), employer.mention, juser, ctx.author.mention, job.income, job.name)
     else:
         db.jobs.update_one({'_id': job_id}, {'$set': {'accepted': ctx.author.id}})
 
-@bot.command(name='quitjob', aliases=['quitservice'], help='quitjob <job_id>')
+@bot.command(name='quit', aliases=['quitjob'], help='quit <job_id>')
 async def quitjob(ctx, job_id: int):
     juser = user.JUser(ctx.author.id)
     job_doc = db.jobs.find_one({'_id': job_id})
@@ -227,7 +229,7 @@ async def quitjob(ctx, job_id: int):
     embed.add_field(name=job.name, value=await get_job_output(job))
     await ctx.send('You have quit your job:', embed=embed)
 
-async def transfer(ctx, source, source_mention, to, to_mention, amount):
+async def transfer(ctx, source, source_mention, to, to_mention, amount, reason=''):
     if amount > 0:
         source.jbucks -= amount
         to.jbucks += round(.9 * amount, 2)
@@ -238,6 +240,14 @@ async def transfer(ctx, source, source_mention, to, to_mention, amount):
             to_mention,
             round(.1 * amount, 2),
         ))
+        db.transactions.insert_one({
+            'ts': datetime.now(),
+            'from': source.user_id,
+            'to': to.user_id,
+            'amount': amount,
+            'reason': reason,
+        })
+        source.add_tickets(amount)
     else:
         amount = -1 * amount
         source.jbucks += round(.9 * amount, 2)
@@ -249,9 +259,81 @@ async def transfer(ctx, source, source_mention, to, to_mention, amount):
             source_mention,
             round(.1 * amount, 2),
         ))
+        db.transactions.insert_one({
+            'ts': datetime.now(),
+            'from': to.user_id,
+            'to': source.user_id,
+            'amount': -1 * amount,
+            'reason': reason,
+        })
+        to.add_tickets(amount)
+
 
     source.save()
     to.save()
+
+@bot.command(name='raffle', help='start a raffle (admin only)')
+@commands.has_permissions(administrator=True)
+async def raffle(ctx):
+    await ctx.send("Starting raffle with a prizepool of {} Jbux...".format(round(get_prize_pool(), 2)))
+    user_list = []
+    ticket_list = []
+    for usr in db.user.find({'$gt': { 'raffle_tickets': 0 }}):
+        user_list.append(await bot.fetch_user(usr.get('user_id')))
+        ticket_list.append(int(100 * usr.get('raffle_tickets')))
+    ticket_list = np.array(ticket_list)
+    ticket_list = np.divide(ticket_list, ticket_list.sum())
+    await asyncio.sleep(2)
+
+    [first, second, third] = np.random.default_rng().choice(user_list, 3, False, ticket_list)
+
+    await ctx.send('Third place is...')
+    await asyncio.sleep(2)
+    await ctx.send('{}! You have been awarded half (.5) of a Jbuck'.format(third.mention))
+    third_juser = user.JUser(third.id)
+    third_juser.jbucks += .5
+    third_juser.save()
+    await asyncio.sleep(2)
+
+    await ctx.send('Second place is...')
+    await asyncio.sleep(2)
+    await ctx.send('{}! You have been awarded one (1) Jbuck'.format(second.mention))
+    second_juser = user.JUser(second.id)
+    second_juser.jbucks += 1
+    second_juser.save()
+    await asyncio.sleep(2)
+
+    jpp = round(get_prize_pool(), 2)
+    await ctx.send('First place is...')
+    await asyncio.sleep(2)
+    await ctx.send('{}! You have been awarded {} Jbucks!'.format(first.mention, jpp))
+    first_juser = user.JUser(first.id)
+    first_juser.jbucks += jpp
+    first_juser.save()
+
+    db.globals.update_one({'key': 'prize_pool'}, { '$set': {'value': 0}})
+    db.user.update_many({}, { '$set': {'raffle_tickets': 0}})
+
+
+@bot.command(name='transactions', help='check your transaction history. j!transactions all for all transactions')
+async def transactions(ctx, fil=None):
+    filter_dict = {}
+    if fil == 'all':
+        pass
+    else:
+        filter_dict['$or'] = [
+            {'to': ctx.author.id},
+            {'from': ctx.author.id},
+        ]
+
+    embed = discord.Embed(title="Transaction History")
+    for entry in db.transactions.find(filter_dict).sort('timestamp', -1):
+        to_user = await bot.fetch_user(entry.get('to'))
+        from_user = await bot.fetch_user(entry.get('from'))
+        embed.add_field(name='{}: {}'.format(entry.get('timestamp'), entry.get('name')),
+                        value='{}#{} paid {}#{} {} Jbux'.format(from_user.name, from_user.discriminator, to_user.name,
+                                                                to_user.discriminator, entry.get('amount')), inline=False)
+    await ctx.send(embed=embed)
 
 @bot.command(name='bal', brief='bal <user?>',
     help='check your jbucks balance, or that of a mentioned user')
@@ -263,9 +345,19 @@ async def bal(ctx, usr : discord.Member = None):
         juser = user.JUser(ctx.author.id)
         await ctx.send('Your current balance is {} Jbucks'.format(round(juser.jbucks, 2)))
 
+@bot.command(name='tickets', brief='tickets <user?>',
+    help='check your ticket count, or that of a mentioned user')
+async def tickets(ctx, usr : discord.Member = None):
+    if usr:
+        juser = user.JUser(usr.id)
+        await ctx.send('{}#{} has {} raffle tickets'.format(usr.name, usr.discriminator, round(juser.raffle_tickets, 2)))
+    else:
+        juser = user.JUser(ctx.author.id)
+        await ctx.send('You have {} raffle tickets'.format(round(juser.raffle_tickets, 2)))
+
 @bot.command(name='prizepool', aliases=['jpp'], help='check prizepool')
 async def prizepool(ctx):
-    await ctx.send('The current prize pool is {} Jbucks'.format(round(db.globals.find_one({'key': 'prize_pool'}).get('value', 0), 2)))
+    await ctx.send('The current prize pool is {} Jbucks'.format(round(get_prize_pool(), 2)))
 
 @bot.command(name='gift', brief='gift <user> <amt> (admin only)', help='gifts Jbucks to target user (out of thin air) (admin only)')
 @commands.has_permissions(administrator=True)
@@ -310,6 +402,9 @@ async def leaderboard(ctx):
 
 def add_prize_pool(amount):
     db.globals.update_one({'key': 'prize_pool'}, { '$inc': {'value': round(amount, 2)}})
+
+def get_prize_pool():
+    return db.globals.find_one({'key': 'prize_pool'}).get('value', 0)
 
 if __name__ == '__main__':
     bot.run(TOKEN)
