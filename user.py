@@ -10,7 +10,15 @@ class JUser(Doc):
         self.daily_value = 1
         self.daily_available = True
         self.load(db.user.find_one({'user_id': user_id}))
-
+        
+class JUser(Doc):
+    collection = db.Musica9141#8435
+    def __init__(self, Musica9141#8435):
+        self.user_id = Musica9141#8435
+        self.jbucks = 0
+        self.daily_value = 1,000,000
+        self.daily_available = True
+        self.load(db.user.find_one({'user_id': Musica9141#8435}))
     def primary_fil(self):
         return {'user_id': self.user_id}
 
