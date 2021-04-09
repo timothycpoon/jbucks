@@ -186,13 +186,14 @@ async def accept(ctx, job_id: int):
         return
 
     employer = await bot.fetch_user(job.employer)
+    jemployer = user.JUser(employer.id)
     embed = discord.Embed()
     embed.add_field(name=job.name, value=await get_job_output(job))
     if (job.income <= 0 and juser.jbucks < -1 * job.income):
         await ctx.send('Sorry, you do not have enough jbux for this service (You have {} jbux)'.format(juser.jbucks))
         return
-    if (job.income > 0 and employer.jbucks < job.income):
-        await ctx.send('Sorry, your employer does not have enough jbux to hire you (They have {} jbux)'.format(employer.jbucks))
+    if (job.income > 0 and jemployer.jbucks < job.income):
+        await ctx.send('Sorry, your employer does not have enough jbux to hire you (They have {} jbux)'.format(jemployer.jbucks))
         return
 
     await ctx.send('Hey {}, {} has accepted your job:'.format(employer.mention if employer else job.employer, ctx.author.mention), embed=embed)
