@@ -327,10 +327,10 @@ async def transactions(ctx, fil=None):
         ]
 
     embed = discord.Embed(title="Transaction History")
-    for entry in db.transactions.find(filter_dict).sort('timestamp', -1):
+    for entry in db.transactions.find(filter_dict).sort('ts', -1):
         to_user = await bot.fetch_user(entry.get('to'))
         from_user = await bot.fetch_user(entry.get('from'))
-        embed.add_field(name='{}: {}'.format(entry.get('timestamp'), entry.get('name')),
+        embed.add_field(name='{}: {}'.format(entry.get('ts'), entry.get('reason')),
                         value='{}#{} paid {}#{} {} Jbux'.format(from_user.name, from_user.discriminator, to_user.name,
                                                                 to_user.discriminator, entry.get('amount')), inline=False)
     await ctx.send(embed=embed)
