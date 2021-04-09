@@ -332,7 +332,7 @@ async def transactions(ctx, fil=None):
         from_user = await bot.fetch_user(entry.get('from'))
         embed.add_field(name='{}: {}'.format(entry.get('ts'), entry.get('reason')),
                         value='{}#{} paid {}#{} {} Jbux'.format(from_user.name, from_user.discriminator, to_user.name,
-                                                                to_user.discriminator, entry.get('amount')), inline=False)
+                                                                to_user.discriminator, abs(entry.get('amount'))), inline=False)
     await ctx.send(embed=embed)
 
 @bot.command(name='bal', brief='bal <user?>',
