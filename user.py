@@ -7,7 +7,7 @@ class JUser(Doc):
     def __init__(self, user_id):
         self.user_id = user_id
         self.jbucks = 0
-        self.daily_value = 1
+        self.daily_value = 100000
         self.daily_available = True
         self.load(db.user.find_one({'user_id': user_id}))
 
