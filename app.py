@@ -128,13 +128,13 @@ async def get_job_output(job):
                accepted_str,
     )
 
-@bot.command(name='postservice', usage='postservice <cost> <never|daily> <name>:<description>',
+@bot.command(name='postservice', usage='<cost> <never|daily> <name>:<description>',
     brief='postservice <cost> <never|daily> <name>:<description>',
     help='If "never" is set, there is a one-time transfer when the job is accepted.')
 async def postservice(ctx, income: float, repeats, *args):
     await postjob(ctx, -1 * income, repeats, *args)
 
-@bot.command(name='postjob', usage='postjob <income> <never|daily> <name>:<description>',
+@bot.command(name='postjob', usage='<income> <never|daily> <name>:<description>',
     brief='postjob <income> <never|daily> <name>:<description>',
     help='If "never" is set, there is a one-time transfer when the job is accepted.')
 async def postjob(ctx, income: float, repeats, *args):
@@ -266,7 +266,7 @@ async def bal(ctx, usr : discord.Member = None):
 async def prizepool(ctx):
     await ctx.send('The current prize pool is {} Jbucks'.format(round(db.globals.find_one({'key': 'prize_pool'}).get('value', 0), 2)))
 
-@bot.command(name='gift', brief='gift <user> <amt> (admin only)', help='gifts Jbucks to target user (out of thin air) (admin only')
+@bot.command(name='gift', brief='gift <user> <amt> (admin only)', help='gifts Jbucks to target user (out of thin air) (admin only)')
 @commands.has_permissions(administrator=True)
 async def gift(ctx, usr: discord.Member, amt: float):
     juser = user.JUser(usr.id)
