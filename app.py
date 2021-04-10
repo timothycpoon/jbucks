@@ -66,10 +66,10 @@ async def pay(ctx, amount: float, target: discord.Member, *reasons):
     await ctx.send('You have paid {} Jbucks to {}#{}. You now have {} Jbucks and they have {}.'
                    .format(amount, target.name, target.discriminator, round(juser.jbucks, 2), round(target_user.jbucks, 2)))
 
-@bot.command(name='viewjobs', brief='viewjobs <type?>',
-    help='"posted" to see only your jobs; "accepted" to see accepted by you; "all" to see all, including accepted')
-async def viewjobs(ctx, mine=None):
-    await view(ctx, 'jobs', mine)
+@bot.command(name='viewrequests', brief='viewrequests <type?>',
+    help='"posted" to see only your requests; "accepted" to see accepted by you; "all" to see all, including accepted')
+async def viewrequests(ctx, mine=None):
+    await view(ctx, 'requests', mine)
 
 @bot.command(name='viewservices', brief='viewservices <type?>',
     help='"posted" to see only your services; "accepted" to see accepted by you; "all" to see all, including accepted')
@@ -78,7 +78,7 @@ async def viewservices(ctx, mine=None):
 
 async def view(ctx, type, mine=None):
     fil = {}
-    fil['income'] = {'$gt': 0} if type == 'jobs' else {'$lte': 0}
+    fil['income'] = {'$gt': 0} if type == 'requests' else {'$lte': 0}
     if mine == 'posted':
         fil['accepted'] = 0
         fil['employer'] = ctx.author.id
@@ -92,7 +92,7 @@ async def view(ctx, type, mine=None):
 
     embed = discord.Embed(title='Current {}'.format(type))
     if db.jobs.count_documents(fil) == 0:
-        await ctx.send("No jobs found")
+        await ctx.send("No {} found".format(type))
         return
     for j in db.jobs.find(fil):
         job = jobs.Job()
@@ -132,13 +132,13 @@ async def get_job_output(job):
 
 @bot.command(name='postservice', usage='<cost> <never|daily> <name>:<description>',
     brief='postservice <cost> <never|daily> <name>:<description>',
-    help='If "never" is set, there is a one-time transfer when the job is accepted.')
+    help='If "never" is set, there is a one-time transfer when the service is accepted.')
 async def postservice(ctx, income: float, repeats, *args):
     await postjob(ctx, -1 * income, repeats, *args)
 
-@bot.command(name='postjob', usage='<income> <never|daily> <name>:<description>',
-    brief='postjob <income> <never|daily> <name>:<description>',
-    help='If "never" is set, there is a one-time transfer when the job is accepted.')
+@bot.command(name='postrequest', usage='<income> <never|daily> <name>:<description>',
+    brief='postrequest <income> <never|daily> <name>:<description>',
+    help='If "never" is set, there is a one-time transfer when the request is accepted.')
 async def postjob(ctx, income: float, repeats, *args):
     if repeats not in ['never', 'daily']:
         await ctx.send("Please specify if the job pays once or daily")
@@ -156,8 +156,8 @@ async def postjob(ctx, income: float, repeats, *args):
     embed.add_field(name=name, value=await get_job_output(new_job))
     await ctx.send('Successfully Added Job', embed=embed)
 
-@bot.command(name='delete', aliases=['deleteservice', 'deletejob'], help='deletejob <job_id>')
-async def deletejob(ctx, job_id: int):
+@bot.command(name='delete', aliases=['deleteservice', 'deleterequest'], help='delete <job_id>')
+async def delete(ctx, job_id: int):
     job = db.jobs.find_one({'_id': job_id})
     if not job:
         await ctx.send("Could not find job")
@@ -201,12 +201,12 @@ async def accept(ctx, job_id: int):
     await ctx.send('Hey {}, {} has accepted your job:'.format(employer.mention if employer else job.employer, ctx.author.mention), embed=embed)
 
     if job.repeats == 'never':
-        await transfer(ctx, user.JUser(job.employer), employer.mention, juser, ctx.author.mention, job.income, job.name)
+        await transfer(ctx, user.JUser(job.employer), employer.mention, juser, ctx.author.mention, job.income, job.name, job._id)
     else:
         db.jobs.update_one({'_id': job_id}, {'$set': {'accepted': ctx.author.id}})
 
 @bot.command(name='quit', aliases=['quitjob'], help='quit <job_id>')
-async def quitjob(ctx, job_id: int):
+async def quit(ctx, job_id: int):
     juser = user.JUser(ctx.author.id)
     job_doc = db.jobs.find_one({'_id': job_id})
 
@@ -229,7 +229,7 @@ async def quitjob(ctx, job_id: int):
     embed.add_field(name=job.name, value=await get_job_output(job))
     await ctx.send('You have quit your job:', embed=embed)
 
-async def transfer(ctx, source, source_mention, to, to_mention, amount, reason=''):
+async def transfer(ctx, source, source_mention, to, to_mention, amount, reason='', job_id=None):
     if amount > 0:
         source.jbucks -= amount
         to.jbucks += round(.9 * amount, 2)
@@ -246,6 +246,7 @@ async def transfer(ctx, source, source_mention, to, to_mention, amount, reason='
             'to': to.user_id,
             'amount': amount,
             'reason': reason,
+            'job': job_id,
         })
         source.add_tickets(amount)
     else:
@@ -265,6 +266,7 @@ async def transfer(ctx, source, source_mention, to, to_mention, amount, reason='
             'to': source.user_id,
             'amount': -1 * amount,
             'reason': reason,
+            'job': job_id,
         })
         to.add_tickets(amount)
 
