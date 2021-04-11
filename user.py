@@ -1,5 +1,4 @@
 from app import db
-from datetime import datetime
 from doc import Doc
 
 class JUser(Doc):
@@ -18,7 +17,7 @@ class JUser(Doc):
     def daily(self):
         self.daily_available = False
         self.add_jbucks(self.daily_value)
-        msg = 'You have gained {} Jbucks. You now have {} Jbucks'.format(self.daily_value, self.jbucks)
+        msg = 'You have gained {} Jbucks. You now have {} Jbucks'.format(self.daily_value, round(self.jbucks, 2))
         if self.daily_value < 5:
             self.daily_value += 1
         return msg

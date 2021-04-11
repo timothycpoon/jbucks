@@ -4,3 +4,4 @@ numpy==1.20.0
 discord==1.0.1
 python-dotenv==0.17.0
 dnspython==2.1.0
+disputils==0.1.3
