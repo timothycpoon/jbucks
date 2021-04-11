@@ -57,7 +57,7 @@ async def pay(ctx, amount: float, target: discord.Member, *reasons):
         await ctx.send('You are too poor for this request (You have {} Jbucks)'.format(juser.jbucks))
         return
 
-    await utils.transfer(ctx, target_user, target.mention, juser, ctx.author.mention, amount, reason=reason)
+    await utils.transfer(ctx, juser, ctx.author.mention, target_user, target.mention, amount, reason=reason)
 
 @bot.command(name='viewrequests', brief='viewrequests <type?>',
     help='"posted" to see only your requests; "accepted" to see accepted by you; "all" to see all, including accepted')
