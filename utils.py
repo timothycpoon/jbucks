@@ -63,6 +63,7 @@ async def transfer(ctx, source, source_mention, to, to_mention, amount, reason='
             'amount': amount,
             'reason': reason,
             'job': job_id,
+            'jump_url': ctx.message.jump_url,
         })
         source.add_tickets(amount)
     else:
@@ -83,6 +84,7 @@ async def transfer(ctx, source, source_mention, to, to_mention, amount, reason='
             'amount': -1 * amount,
             'reason': reason,
             'job': job_id,
+            'jump_url': ctx.message.jump_url,
         })
         to.add_tickets(amount)
 

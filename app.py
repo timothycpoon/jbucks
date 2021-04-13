@@ -57,12 +57,12 @@ async def pay(ctx, amount: float, target: discord.Member, *reasons):
 
     await utils.transfer(ctx, juser, ctx.author.mention, target_user, target.mention, amount, reason=reason)
 
-@bot.command(name='viewrequests', brief='viewrequests <type?>',
+@bot.command(name='requests', aliases=['viewrequests'], brief='requests <type?>',
     help='"posted" to see only your requests; "accepted" to see accepted by you; "all" to see all, including accepted')
 async def viewrequests(ctx, mine=None):
     await utils.view(ctx, 'requests', mine)
 
-@bot.command(name='viewservices', brief='viewservices <type?>',
+@bot.command(name='services', aliases=['viewservices'],  brief='services <type?>',
     help='"posted" to see only your services; "accepted" to see accepted by you; "all" to see all, including accepted')
 async def viewservices(ctx, mine=None):
     await utils.view(ctx, 'services', mine)
@@ -80,12 +80,12 @@ async def postjob(ctx, income: float, repeats, *args):
     if repeats not in ['never', 'daily']:
         await ctx.send("Please specify if the job pays once or daily")
         return
-    [name, description] = (' '.join(args)).split(':')
+    [name, *description] = (' '.join(args)).split(':')
     new_job = jobs.Job(db.globals.find_one_and_update({'key': 'job_counter'}, { '$inc': {'value': 1}}).get('value'))
     new_job.income = income
     new_job.repeats = repeats
     new_job.name = name
-    new_job.description = description
+    new_job.description = ':'.join(description)
     new_job.employer = ctx.author.id
     new_job.save()
 
@@ -230,10 +230,13 @@ async def transactions(ctx, fil=None):
     for entry in db.transactions.find(filter_dict).sort('ts', -1):
         to_user = await utils.get_user(ctx, entry.get('to'))
         from_user = await utils.get_user(ctx, entry.get('from'))
+        jump_url = entry.get('jump_url')
+        jump_str = ' ([jump]({}))'.format(jump_url) if jump_url else ''
         data.append({
-            'name':'{}: {}'.format(entry.get('ts'), entry.get('reason')),
-            'value': '{}#{} paid {}#{} {} Jbux'.format(from_user.name, from_user.discriminator, to_user.name,
-                                                       to_user.discriminator, abs(entry.get('amount'))),
+            'name':'{}: {}'.format(entry.get('ts').date(), entry.get('reason')),
+            'value': '{}#{} paid {}#{} {} Jbux{}'.format(from_user.name, from_user.discriminator, to_user.name,
+                                                                    to_user.discriminator, abs(entry.get('amount')),
+                                                                    jump_str),
             'inline': False,
         })
 
