@@ -6,6 +6,9 @@ import user
 import jobs
 
 async def paginate(ctx, title, data, page_size=6):
+    if len(data) == 0:
+        await ctx.send('No data found')
+        return
     embeds = []
     for i in range(int((len(data) + 5) / page_size)):
         embeds.append(discord.Embed(title="{} page {}".format(title, i + 1)))

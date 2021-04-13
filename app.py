@@ -20,8 +20,6 @@ import user
 import jobs
 import utils
 
-    # return bot.await utils.get_user(int(user_id)) or await bot.fetch_user(int(user_id))
-
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
@@ -211,11 +209,17 @@ async def raffle(ctx):
     db.user.update_many({}, { '$set': {'raffle_tickets': 0}})
 
 
-@bot.command(name='transactions', help='check your transaction history. j!transactions all for all transactions')
+@bot.command(name='transactions', brief='check your transaction history.',
+             help='all for all transactions. jobs for accepted jobs')
 async def transactions(ctx, fil=None):
     filter_dict = {}
     if fil == 'all':
         pass
+    elif fil == 'jobs':
+        filter_dict['to'] = ctx.author.id
+        filter_dict['job'] = {
+            '$ne': None,
+        }
     else:
         filter_dict['$or'] = [
             {'to': ctx.author.id},
