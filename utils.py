@@ -110,12 +110,10 @@ async def get_job_output(ctx, job):
     return r"""
         ID: {}
         {}
-        Repeats: {}
         {}: {}
         Description: {}{}
     """.format(job._id,
                income_str,
-               job.repeats,
                'Employer' if job.income > 0 else 'Seller',
                '{}#{}'.format(employer.name, employer.discriminator),
                job.description,

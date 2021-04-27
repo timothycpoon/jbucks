@@ -67,23 +67,18 @@ async def viewrequests(ctx, mine=None):
 async def viewservices(ctx, mine=None):
     await utils.view(ctx, 'services', mine)
 
-@bot.command(name='postservice', usage='<cost> <never|daily> <name>:<description>',
-    brief='postservice <cost> <never|daily> <name>:<description>',
-    help='If "never" is set, there is a one-time transfer when the service is accepted.')
-async def postservice(ctx, income: float, repeats, *args):
-    await postjob(ctx, -1 * income, repeats, *args)
+@bot.command(name='postservice', usage='<cost> <name>:<description>',
+    brief='postservice <cost> <name>:<description>')
+async def postservice(ctx, income: float, *args):
+    await postjob(ctx, -1 * income, *args)
 
-@bot.command(name='postrequest', usage='<income> <never|daily> <name>:<description>',
-    brief='postrequest <income> <never|daily> <name>:<description>',
+@bot.command(name='postrequest', usage='<income> <name>:<description>',
+    brief='postrequest <income> <name>:<description>',
     help='If "never" is set, there is a one-time transfer when the request is accepted.')
-async def postjob(ctx, income: float, repeats, *args):
-    if repeats not in ['never', 'daily']:
-        await ctx.send("Please specify if the job pays once or daily")
-        return
+async def postjob(ctx, income: float, *args):
     [name, *description] = (' '.join(args)).split(':')
     new_job = jobs.Job(db.globals.find_one_and_update({'key': 'job_counter'}, { '$inc': {'value': 1}}).get('value'))
     new_job.income = income
-    new_job.repeats = repeats
     new_job.name = name
     new_job.description = ':'.join(description)
     new_job.employer = ctx.author.id
@@ -136,11 +131,7 @@ async def accept(ctx, job_id: int):
         return
 
     await ctx.send('Hey {}, {} has accepted your job:'.format(employer.mention if employer else job.employer, ctx.author.mention), embed=embed)
-
-    if job.repeats == 'never':
-        await utils.transfer(ctx, user.JUser(job.employer), employer.mention, juser, ctx.author.mention, job.income, job.name, job._id)
-    else:
-        db.jobs.update_one({'_id': job_id}, {'$set': {'accepted': ctx.author.id}})
+    await utils.transfer(ctx, user.JUser(job.employer), employer.mention, juser, ctx.author.mention, job.income, job.name, job._id)
 
 @bot.command(name='quit', aliases=['quitjob'], help='quit <job_id>')
 async def quitjob(ctx, job_id: int):
