@@ -15,7 +15,10 @@ async def paginate(ctx, title, data, page_size=6):
 
     for i in range(len(data)):
         page = embeds[int(i / page_size)]
-        page.add_field(**data[i])
+        if page.description == discord.Embed.Empty:
+            page.description = data[i][1:]
+        else:
+            page.description += data[i]
 
     paginator = BotEmbedPaginator(ctx, embeds)
     await paginator.run()

@@ -15,7 +15,7 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 client = MongoClient(os.getenv('MONGODB_URL'))
 db = client[os.getenv('DB_NAME') or 'jbucks']
 
-bot = commands.Bot('j!', commands.DefaultHelpCommand(no_category="JBucks"), intents=intents)
+bot = commands.Bot('j!', help_command=commands.DefaultHelpCommand(no_category="JBucks"), intents=intents)
 import user
 import jobs
 import utils
@@ -295,11 +295,7 @@ async def leaderboard(ctx):
     data = []
     for entry in db.user.find({}).sort('jbucks', -1):
         usr = await utils.get_user(ctx, entry.get('user_id'))
-        data.append({
-            'name': '{}#{}'.format(usr.name, usr.discriminator),
-            'value': round(entry.get('jbucks'), 2),
-            'inline': False
-        })
+        data.append("\n<@{}>: {}".format(usr.id, round(entry.get('jbucks'), 2)))
 
     await utils.paginate(ctx, "The Official Jelly JBucks Leaderboard", data)
 
