@@ -45,7 +45,7 @@ async def view(ctx, type, mine=None):
     for j in db.jobs.find(fil).sort('_id', -1):
         job = jobs.Job()
         job.load(j)
-        data.append({'name': job.name, 'value': await get_job_output(ctx, job)})
+        data.append("Job: {}\n{}".format(job.name, await get_job_output(ctx, job)))
     await paginate(ctx, 'Current {}'.format(type), data)
 
 async def transfer(ctx, source, source_mention, to, to_mention, amount, reason='', job_id=None):
