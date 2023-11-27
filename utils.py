@@ -109,7 +109,7 @@ async def get_job_output(ctx, job):
     accepted_str = ""
     if job.accepted:
         accepted_by = await get_user(ctx, job.accepted)
-        accepted_str = "\nAccepted by: {}#{}".format(accepted_by.name, accepted_by.discriminator)
+        accepted_str = "\nAccepted by: <@{}>".format(accepted_by.id)
     return r"""
         ID: {}
         {}
@@ -118,7 +118,7 @@ async def get_job_output(ctx, job):
     """.format(job._id,
                income_str,
                'Employer' if job.income > 0 else 'Seller',
-               '{}#{}'.format(employer.name, employer.discriminator),
+               '<@{}>'.format(employer.id),
                job.description,
                accepted_str,
     )
