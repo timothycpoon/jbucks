@@ -225,9 +225,8 @@ async def transactions(ctx, fil=None):
         jump_str = ' ([jump]({}))'.format(jump_url) if jump_url else ''
         data.append({
             'name':'{}: {}'.format(entry.get('ts').date(), entry.get('reason')),
-            'value': '{}#{} paid {}#{} {} Jbux{}'.format(from_user.name, from_user.discriminator, to_user.name,
-                                                                    to_user.discriminator, abs(entry.get('amount')),
-                                                                    jump_str),
+            'value': '{} paid {} {} Jbux{}'.format(from_user.mention, to_user.mention,
+                abs(entry.get('amount')), jump_str),
             'inline': False,
         })
 
@@ -293,11 +292,18 @@ async def victory(ctx):
 @bot.command(name='leaderboard', help='check jbucks leaderboard')
 async def leaderboard(ctx):
     data = []
+    ordinal = 1
     for entry in db.user.find({}).sort('jbucks', -1):
         usr = await utils.get_user(ctx, entry.get('user_id'))
-        data.append("\n<@{}>: {}".format(usr.id, round(entry.get('jbucks'), 2)))
+        data.append({
+            'name': "{}st/nd/rd/th".format(ordinal),
+            'value': "{}\n{}".format(usr.mention, round(entry.get('jbucks'), 2)),
+            'inline': False
+        })
+        ordinal += 1
 
     await utils.paginate(ctx, "The Official Jelly JBucks Leaderboard", data)
 
 if __name__ == '__main__':
+    print("test")
     bot.run(TOKEN)

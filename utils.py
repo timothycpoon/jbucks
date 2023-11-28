@@ -15,10 +15,7 @@ async def paginate(ctx, title, data, page_size=6):
 
     for i in range(len(data)):
         page = embeds[int(i / page_size)]
-        if page.description == discord.Embed.Empty:
-            page.description = data[i][1:]
-        else:
-            page.description += data[i]
+        page.add_field(**data[i])
 
     paginator = BotEmbedPaginator(ctx, embeds)
     await paginator.run()
@@ -45,7 +42,7 @@ async def view(ctx, type, mine=None):
     for j in db.jobs.find(fil).sort('_id', -1):
         job = jobs.Job()
         job.load(j)
-        data.append("\nJob: {}{}".format(job.name, await get_job_output(ctx, job)))
+        data.append({'name': job.name, 'value': await get_job_output(ctx, job)})
     await paginate(ctx, 'Current {}'.format(type), data)
 
 async def transfer(ctx, source, source_mention, to, to_mention, amount, reason='', job_id=None):
@@ -109,7 +106,7 @@ async def get_job_output(ctx, job):
     accepted_str = ""
     if job.accepted:
         accepted_by = await get_user(ctx, job.accepted)
-        accepted_str = "\nAccepted by: <@{}>".format(accepted_by.id)
+        accepted_str = "\nAccepted by: {}".format(accepted_by.mention)
     return r"""
         ID: {}
         {}
@@ -118,7 +115,7 @@ async def get_job_output(ctx, job):
     """.format(job._id,
                income_str,
                'Employer' if job.income > 0 else 'Seller',
-               '<@{}>'.format(employer.id),
+               employer.mention,
                job.description,
                accepted_str,
     )
